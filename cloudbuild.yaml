@@ -1,0 +1,39 @@
+# Nazwa pliku: cloudbuild.yaml
+steps:
+# 1. BUDOWANIE OBRAZU (lokalnie w środowisku Cloud Build)
+- name: 'gcr.io/cloud-builders/docker'
+  id: Build
+  args:
+  - 'build'
+  - '-t'
+  - 'gcr.io/$PROJECT_ID/access-api:$COMMIT_SHA'
+  - '.'
+
+# 2. PUSH OBRAZU (Wysyłanie do rejestru kontenerów)
+- name: 'gcr.io/cloud-builders/docker'
+  id: Push
+  args:
+  - 'push'
+  - 'gcr.io/$PROJECT_ID/access-api:$COMMIT_SHA' # <--- Ten krok zapisuje obraz!
+
+# 3. WDROŻENIE NA CLOUD RUN (Teraz obraz jest w rejestrze i może być pobrany)
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: Deploy
+  args:
+  - 'run'
+  - 'deploy'
+  - 'access-api'
+  - '--image'
+  - 'gcr.io/$PROJECT_ID/access-api:$COMMIT_SHA'
+  - '--region'
+  - 'europe-central2' # Upewnij się, że to jest Twój region
+  - '--platform'
+  - 'managed'
+  - '--port'
+  - '5000'
+  - '--allow-unauthenticated'
+
+timeout: '1600s'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
