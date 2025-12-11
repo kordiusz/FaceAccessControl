@@ -7,6 +7,7 @@ cred = credentials.Certificate("./private-key.json")
 firebase_admin.initialize_app(cred)
 import numpy as np
 import cv2
+import datetime
 db = firestore.client()
 
 app = Flask(__name__)
@@ -27,19 +28,30 @@ def verify():
     uid = data['uid']
     encodings = np.array( data["encodings"], dtype='float32')
     similarity = face_recognition.face_distance([encodings], faces[uid]['encodings'])[0]
-    match = similarity > 0.6
+    match = similarity > 0.5
     print(f'match: {match}, {similarity}')
+
+
+
     if match:
         return f"Ok {faces[uid]['name']}"
     else:
         return "Nope"
     
 
-@app.route('/tmp', methods=['POST'])
-def home():
-    #doc_ref = db.collection("people").document()
-    #doc_ref.set(data)
+
+@app.route('/tmp/<uid>', methods=['GET'])
+def AddLog(uid):
     
+    doc_ref = db.collection("logs").document()
+    log = {
+        "uid": uid,
+        "time": datetime.datetime.now(tz=datetime.timezone.utc),
+        "success": False
+    }
+    doc_ref.create(log)
+
+    return "ok", 200
     try:
         face_image = face_recognition.load_image_file(request.files['jan_kowalski.jpg'])
     except Exception as e:
