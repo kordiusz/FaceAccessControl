@@ -12,6 +12,7 @@ db = firestore.client()
 
 app = Flask(__name__)
 
+
 face_image = cv2.imread("./igor.png")
 rgb_face = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
 face_encodings = face_recognition.face_encodings(rgb_face)
@@ -31,7 +32,13 @@ def verify():
     match = similarity > 0.5
     print(f'match: {match}, {similarity}')
 
-
+    doc_ref = db.collection("logs").document()
+    log = {
+        "uid": uid,
+        "time": datetime.datetime.now(tz=datetime.timezone.utc),
+        "success": bool(match) #np bool to regular so can use in firestore
+    }
+    doc_ref.create(log)
 
     if match:
         return f"Ok {faces[uid]['name']}"
@@ -68,4 +75,4 @@ def AddLog(uid):
         "face_vector": face_vector
     })
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
