@@ -7,7 +7,7 @@ import { signOut, signInWithPopup, GoogleAuthProvider, onAuthStateChanged , User
 
 
 
-const logConverter: FirestoreDataConverter<Log> = {
+export const logConverter: FirestoreDataConverter<Log> = {
   toFirestore(model: Log) {
     return {};
   },
@@ -26,7 +26,7 @@ const logConverter: FirestoreDataConverter<Log> = {
   }
 };
 
-interface Log{
+export interface Log{
   id:string,
   uid: string,
   time: Date,
@@ -37,6 +37,7 @@ function BrowseLogsPage() {
 
   const [logs, setLogs] = useState<Log[]>();
   const [user, setUser] = useState<User | null>();
+  
   const googleLoginHandler :MouseEventHandler = async (event) => {
     try {
       const result = await signInWithPopup(auth, new GoogleAuthProvider());

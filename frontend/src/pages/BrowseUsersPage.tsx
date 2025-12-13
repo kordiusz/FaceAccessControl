@@ -5,7 +5,8 @@ import {  collection, doc, FirestoreDataConverter, getDoc, getDocs, limit, order
 import {auth, db} from "../firebase-config"
 import { signOut, signInWithPopup, GoogleAuthProvider, onAuthStateChanged , User} from 'firebase/auth';
 import { UserData } from './LoginPage';
-
+import {QRCodeSVG } from "qrcode.react";
+import UserRecord from '../components/UserRecord';
 
 const userDataConverter : FirestoreDataConverter<UserData> = {
     toFirestore(user){
@@ -34,10 +35,12 @@ function BrowseUsersPage() {
         fetchUserList();
     },[])
 
+    
+    
 
     return <div>
         {users && users.map(x=>
-            <label>{x.name}</label>
+            <UserRecord user={x}/>
         )}
     </div>
 }
