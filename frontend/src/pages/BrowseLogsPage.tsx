@@ -22,6 +22,7 @@ export const logConverter: FirestoreDataConverter<Log> = {
       uid: data.uid,
       time: (data.time as Timestamp).toDate(),
       success: data.success,
+      image: data.image
     };
   }
 };
@@ -30,7 +31,8 @@ export interface Log{
   id:string,
   uid: string,
   time: Date,
-  success: boolean
+  success: boolean,
+  image:string
 }
 
 function BrowseLogsPage() {

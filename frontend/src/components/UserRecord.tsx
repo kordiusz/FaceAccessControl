@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { UserData } from "../pages/LoginPage";
 import { QRCodeCanvas } from "qrcode.react";
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { db } from "../firebase-config";
 import { Log, logConverter } from "../pages/BrowseLogsPage";
 
@@ -15,6 +15,7 @@ const UserRecord = ({user}: UserProps)=>{
     const [showQr, setShowQr] = useState<boolean>();
     const [entries, setEntries] = useState<Array<Log> | undefined>();
     const [showEntries, setShowEntries] = useState<boolean>();
+    const [intruderImage, setIntruderImage] = useState();
     const toggleQr = ()=>{
         setShowQr(!showQr);
     }
@@ -30,6 +31,10 @@ const UserRecord = ({user}: UserProps)=>{
         }
         fetchEntries();
     }
+
+    const getIntruderImgLink = (id:string)=>{
+        return "http://127.0.0.1:5000/intruder/"+id
+    }
     return (
         <div>
             <label>{user.name}</label>
@@ -38,7 +43,7 @@ const UserRecord = ({user}: UserProps)=>{
             <button onClick={showEntriesHandler}>Entry log</button>
             {entries?.map(x=><div>
                 <label>{x.time.toLocaleString("en-US")} - {x.success ? "ok" : "not recognized"}</label>
-                {!x.success && <button>Show image</button>}
+                {!x.success && <img width="300" height="400" src={getIntruderImgLink(x.image)}/>}
                 
                 </div>)}
 
