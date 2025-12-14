@@ -1,6 +1,6 @@
-from flask import Flask
+from flask import Flask, send_file
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, auth
 import face_recognition
 from flask import request, jsonify
 cred = credentials.Certificate("./private-key.json")
@@ -8,10 +8,15 @@ firebase_admin.initialize_app(cred)
 import numpy as np
 import cv2
 import datetime
+import os
+import time
+import hashlib
+from flask_cors import CORS
+
 db = firestore.client()
 
 app = Flask(__name__)
-
+CORS(app)
 
 face_image = cv2.imread("./igor.png")
 rgb_face = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
@@ -23,56 +28,55 @@ faces = {"aaabbbbcccdddd": {
     "encodings": face_encodings[0]
 }}
 
-@app.route('/verify', methods=['POST'])
-def verify():
-    data =request.json
-    uid = data['uid']
-    encodings = np.array( data["encodings"], dtype='float32')
-    similarity = face_recognition.face_distance([encodings], faces[uid]['encodings'])[0]
-    match = similarity > 0.5
-    print(f'match: {match}, {similarity}')
+def get_uid_from_request():
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return None
 
-    doc_ref = db.collection("logs").document()
-    log = {
-        "uid": uid,
-        "time": datetime.datetime.now(tz=datetime.timezone.utc),
-        "success": bool(match) #np bool to regular so can use in firestore
-    }
-    doc_ref.create(log)
-
-    if match:
-        return f"Ok {faces[uid]['name']}"
-    else:
-        return "Nope"
-    
-
-
-@app.route('/tmp/<uid>', methods=['GET'])
-def AddLog(uid):
-    
-    doc_ref = db.collection("logs").document()
-    log = {
-        "uid": uid,
-        "time": datetime.datetime.now(tz=datetime.timezone.utc),
-        "success": False
-    }
-    doc_ref.create(log)
-
-    return "ok", 200
     try:
-        face_image = face_recognition.load_image_file(request.files['jan_kowalski.jpg'])
-    except Exception as e:
-        return jsonify({"error": f"Could not load image file: {str(e)}"}), 400
+        token = auth_header.split("Bearer ")[1]
+        decoded_token = auth.verify_id_token(token)
+        return decoded_token["uid"]
+    except Exception:
+        return None
 
-    face_encodings = face_recognition.face_encodings(face_image)
-    if not face_encodings:
-        return jsonify({"error": "No face found in the image."}), 400
-    
-    face_vector = face_encodings[0].tolist()  
-    return jsonify({
-        "status": "success",
-        "vector_dimension": len(face_vector),
-        "face_vector": face_vector
-    })
+
+@app.route('/intruder/<img>', methods=["GET"])
+def getImage(img):
+    uid = get_uid_from_request()
+    if uid:
+        return send_file(os.path.join("./images/",img))
+    return "dont have permissions", 401
+
+
+@app.route('/verifyimg', methods=["POST"])
+def verifyWithImg():
+    uid = request.form.get("uid")
+    requestFaceImage = request.files["face"]
+    timestamp = int (time.time()*1000)
+    raw = f'{uid}_{timestamp}'
+    hash_str = hashlib.sha256(raw.encode())
+    filename = f'{hash_str.hexdigest()}.png'
+    path = os.path.join("./images/",filename)
+    requestFaceImage.save(path)
+
+    image = face_recognition.load_image_file(requestFaceImage)
+    requestEncodings = face_recognition.face_encodings(image)
+    actualEncodings = faces["aaabbbbcccdddd"]["encodings"] # tmp
+    similarity = face_recognition.face_distance(requestEncodings, actualEncodings)[0]
+    match = similarity > 0.6
+    print(f"similarity: {similarity}%")
+
+    doc_ref = db.collection("logs").document()
+    log = {
+        "uid":uid,
+        "time":datetime.datetime.now(tz=datetime.timezone.utc),
+        "success": bool(match),
+        "image": filename
+    }
+    doc_ref.create(log)
+
+    return "ok",200
+
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)

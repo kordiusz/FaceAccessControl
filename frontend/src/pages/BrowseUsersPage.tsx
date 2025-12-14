@@ -38,11 +38,11 @@ function BrowseUsersPage() {
     
     
 
-    return <div>
+    return <>
         {users && users.map(x=>
             <UserRecord user={x}/>
         )}
-    </div>
+    </>
 }
 
 export default BrowseUsersPage;

@@ -32,7 +32,7 @@ export interface Log{
   uid: string,
   time: Date,
   success: boolean,
-  image:string
+  image:string,
 }
 
 function BrowseLogsPage() {
@@ -89,6 +89,7 @@ function BrowseLogsPage() {
         {logs?.map((log,i)=>
 
           <div>
+            <span>User:{log.uid} </span>
             <span>Match: {log.success?"yes":"no"}</span>,
             <span>Time: {log.time.toLocaleString("en-US")}</span>
         </div>

@@ -2,6 +2,7 @@ import cv2
 import face_recognition
 import requests
 import base64
+from io import BytesIO
 from qreader import QReader
 #img = cv2.imread('./messi1.jpg')
 #img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -16,14 +17,6 @@ cap = cv2.VideoCapture(0)
 qreader = QReader()
 qr_data = ""
 
-def sendToServer(uid, encodings):
-    payload = {
-        "uid":uid,
-        "encodings":encodings.tolist(),
-    }
-    print(payload)
-    x = requests.post(url,json=payload)
-    return x.text
 
 while True:
     ret,frame =cap.read()
@@ -36,22 +29,46 @@ while True:
         break
 
 
-while True:
-    ret,frame =cap.read()
-    cv2.imshow('FACE',frame)
-    
+def sendToServer(uid, image_bytes):
+    url = "http://localhost:5000/verifyimg"
+    files = {"face": ("frame.png", BytesIO(image_bytes), "image/png")}
+    data = {"uid": uid}
+    response = requests.post(url, data=data, files=files)
+    return response.text
 
-    encodings = face_recognition.face_encodings(frame)
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to grab frame")
+        break
+
+    cv2.imshow('FACE', frame)
+
+    # Convert BGR -> RGB for face_recognition
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    encodings = face_recognition.face_encodings(frame_rgb)
     if encodings:
-        face_locations = face_recognition.face_locations(frame)
-        print(sendToServer(qr_data[0],encodings[0]))
-        cap.release()
-        cv2.destroyAllWindows()
-        exit(0)
+        # Encode frame to PNG bytes
+        success, encoded_image = cv2.imencode(".png", frame)
+        if not success:
+            raise Exception("Failed to encode frame")
+        image_bytes = encoded_image.tobytes()
+
+        # Send to server
+        print(sendToServer(qr_data[0], image_bytes))
+
+        # Stop the loop after first detection
+        break
 
     key = cv2.waitKey(1)
-    if key==ord('q'):
+    if key == ord('q'):
         break
+
+# Cleanup
+cap.release()
+cv2.destroyAllWindows()
+
 
 
 
