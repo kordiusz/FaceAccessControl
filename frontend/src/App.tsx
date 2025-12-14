@@ -4,6 +4,7 @@ import { PublicRoute } from './components/PublicRoute';
 import LoginPage from './pages/LoginPage';
 import { PrivateRoute } from './components/PrivateRoute';
 import BrowseUsersPage from './pages/BrowseUsersPage';
+import MainLayout from './layouts/MainLayout';
 
 
 
@@ -14,11 +15,12 @@ function App() {
   return (
     <BrowserRouter>
     <Routes>
+      <Route element={<MainLayout/>}>
       <Route path="/logs" element={<PrivateRoute><BrowseLogsPage/></PrivateRoute>}/>
-      <Route path="/login" element={<LoginPage/>}/>
       <Route path='/users' element={<PrivateRoute><BrowseUsersPage/></PrivateRoute>}/>
+      </Route>
       <Route path="*" element={<LoginPage/>}/>
-      
+      <Route path="/login" element={<LoginPage/>}/>
     </Routes>
     </BrowserRouter>
   )
