@@ -1,6 +1,7 @@
 from flask import Flask, send_file
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
+from firebase_admin.auth import EmailAlreadyExistsError
 import face_recognition
 from flask import request, jsonify
 import numpy as np
@@ -12,9 +13,10 @@ import json
 import hashlib
 from flask_cors import CORS
 
-db = firestore.client()
+
 cred = credentials.Certificate("./private-key.json")
 firebase_admin.initialize_app(cred)
+db = firestore.client()
 app = Flask(__name__)
 CORS(app)
 
@@ -37,7 +39,7 @@ def getImage(img):
     uid = get_uid_from_request()
     if uid and isAdmin(uid):
         return send_file(os.path.join("./images/",img))
-    return "dont have permissions", 401
+    return "dont have permissions", 403
 
 def isAdmin(uid):
     docRef = db.collection("users").document(uid)
@@ -52,16 +54,26 @@ def addUser():
     if not uid:
         return "dont have permissions - not even user", 401
     if not isAdmin(uid):
-        return "dont have permissions - you are not admin", 401
+        return "dont have permissions - you are not admin", 403
     
     data = json.loads(request.form.get("data"))
     name = data["name"]
     surname = data["surname"]
     email = data["email"]
-    face = request.files["face"]
-    requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))[0]
 
-    user =auth.create_user(display_name=name+surname,email=email)
+    face = request.files["face"]
+    if not face:
+        return "image missing", 400
+    requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))
+    if not requestEncodings or len(requestEncodings) > 1:
+        return "bad photo", 409
+    requestEncodings = requestEncodings[0]
+    try:
+        user =auth.create_user(display_name=name+surname,email=email)
+    except EmailAlreadyExistsError:
+        return "email alredy in-use",409
+    except Exception as ex:
+        return ex, 400
     userRecord = {
         "uid":user.uid,
         "name":f'{name} {surname}',
@@ -73,7 +85,7 @@ def addUser():
     doc_ref = db.collection("users").document(user.uid)
     doc_ref.create(userRecord)
 
-    return userRecord,200
+    return userRecord,201
 
 @app.route('/verifyimg', methods=["POST"])
 def verifyWithImg():
@@ -91,10 +103,11 @@ def verifyWithImg():
 
     userData = db.collection("users").document(uid).get().to_dict()
     actualEncodings = np.array(userData["face"], dtype=np.float64)
-    distance = face_recognition.face_distance([actualEncodings], requestEncodings)[0]
-    match = distance < 0.45
+    distance = face_recognition.face_distance([actualEncodings], requestEncodings)
+    if not distance or len(distance) > 1:
+        return "not a face", 400
     print(f"distance: {distance}")
-
+    match = distance[0] < 0.4
     doc_ref = db.collection("logs").document()
     log = {
         "uid":uid,
@@ -107,4 +120,4 @@ def verifyWithImg():
     return "ok",200
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
