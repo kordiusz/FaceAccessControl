@@ -3,8 +3,6 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import face_recognition
 from flask import request, jsonify
-cred = credentials.Certificate("./private-key.json")
-firebase_admin.initialize_app(cred)
 import numpy as np
 import cv2
 import datetime
@@ -15,7 +13,8 @@ import hashlib
 from flask_cors import CORS
 
 db = firestore.client()
-
+cred = credentials.Certificate("./private-key.json")
+firebase_admin.initialize_app(cred)
 app = Flask(__name__)
 CORS(app)
 
