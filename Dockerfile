@@ -7,6 +7,7 @@ WORKDIR /app
 # Kopiujemy plik z zależnościami i instalujemy je
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN apt install cmake
 
 # Kopiujemy resztę kodu aplikacji do katalogu roboczego
 COPY . .
