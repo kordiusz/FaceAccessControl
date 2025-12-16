@@ -27,6 +27,18 @@ const Navbar = () => {
           >
             Home
           </NavLink>
+      <NavLink
+            to="/users/new"
+            className={({ isActive }) =>
+              `text-sm transition ${
+                isActive
+                  ? "text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`
+            }
+          >
+            Create User
+          </NavLink>
 
           <NavLink
             to="/users"

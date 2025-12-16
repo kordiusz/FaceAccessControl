@@ -38,11 +38,11 @@ function BrowseUsersPage() {
     
     
 
-    return <>
+    return (<ul className='divide-y divide-gray-200'>
         {users && users.map(x=>
             <UserRecord user={x}/>
         )}
-    </>
+    </ul>)
 }
 
 export default BrowseUsersPage;
