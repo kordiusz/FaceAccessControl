@@ -18,9 +18,6 @@ firebase_admin.initialize_app(cred)
 app = Flask(__name__)
 CORS(app)
 
-face_image = cv2.imread("./igor.png")
-rgb_face = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-face_encodings = face_recognition.face_encodings(rgb_face)
 
 def get_uid_from_request():
     auth_header = request.headers.get("Authorization")
