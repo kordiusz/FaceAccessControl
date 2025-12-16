@@ -10,6 +10,7 @@ import cv2
 import datetime
 import os
 import time
+import json
 import hashlib
 from flask_cors import CORS
 
@@ -21,12 +22,6 @@ CORS(app)
 face_image = cv2.imread("./igor.png")
 rgb_face = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
 face_encodings = face_recognition.face_encodings(rgb_face)
-
-#temp just for now
-faces = {"aaabbbbcccdddd": {
-    "name": "Igor",
-    "encodings": face_encodings[0]
-}}
 
 def get_uid_from_request():
     auth_header = request.headers.get("Authorization")
@@ -44,10 +39,45 @@ def get_uid_from_request():
 @app.route('/intruder/<img>', methods=["GET"])
 def getImage(img):
     uid = get_uid_from_request()
-    if uid:
+    if uid and isAdmin(uid):
         return send_file(os.path.join("./images/",img))
     return "dont have permissions", 401
 
+def isAdmin(uid):
+    docRef = db.collection("users").document(uid)
+    snapshot = docRef.get()
+    if not snapshot.exists:
+        return False
+    return snapshot.to_dict()["role"] == "admin"
+
+@app.route("/users/add", methods=["POST"])
+def addUser():
+    uid = get_uid_from_request()
+    if not uid:
+        return "dont have permissions - not even user", 401
+    if not isAdmin(uid):
+        return "dont have permissions - you are not admin", 401
+    
+    data = json.loads(request.form.get("data"))
+    name = data["name"]
+    surname = data["surname"]
+    email = data["email"]
+    face = request.files["face"]
+    requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))[0]
+
+    user =auth.create_user(display_name=name+surname,email=email)
+    userRecord = {
+        "uid":user.uid,
+        "name":f'{name} {surname}',
+        "email": email,
+        "face":requestEncodings.tolist(),
+        "role":"user"
+    }
+
+    doc_ref = db.collection("users").document(user.uid)
+    doc_ref.create(userRecord)
+
+    return userRecord,200
 
 @app.route('/verifyimg', methods=["POST"])
 def verifyWithImg():
@@ -61,11 +91,13 @@ def verifyWithImg():
     requestFaceImage.save(path)
 
     image = face_recognition.load_image_file(requestFaceImage)
-    requestEncodings = face_recognition.face_encodings(image)
-    actualEncodings = faces["aaabbbbcccdddd"]["encodings"] # tmp
-    similarity = face_recognition.face_distance(requestEncodings, actualEncodings)[0]
-    match = similarity > 0.6
-    print(f"similarity: {similarity}%")
+    requestEncodings = face_recognition.face_encodings(image)[0]
+
+    userData = db.collection("users").document(uid).get().to_dict()
+    actualEncodings = np.array(userData["face"], dtype=np.float64)
+    distance = face_recognition.face_distance([actualEncodings], requestEncodings)[0]
+    match = distance < 0.45
+    print(f"distance: {distance}")
 
     doc_ref = db.collection("logs").document()
     log = {
@@ -79,4 +111,4 @@ def verifyWithImg():
     return "ok",200
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
