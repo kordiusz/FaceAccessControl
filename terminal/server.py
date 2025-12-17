@@ -67,7 +67,7 @@ def addUser():
     requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))
     if not requestEncodings or len(requestEncodings) > 1:
         return "bad photo", 409
-    requestEncodings = requestEncodings[0]
+    finalEncodings = requestEncodings[0]
     try:
         user =auth.create_user(display_name=name+surname,email=email)
     except EmailAlreadyExistsError:
@@ -78,7 +78,7 @@ def addUser():
         "uid":user.uid,
         "name":f'{name} {surname}',
         "email": email,
-        "face":requestEncodings.tolist(),
+        "face":finalEncodings.tolist(),
         "role":"user"
     }
 
