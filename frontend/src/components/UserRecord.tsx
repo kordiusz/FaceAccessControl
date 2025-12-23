@@ -1,22 +1,24 @@
 import { useEffect, useState } from "react";
 import { UserData } from "../pages/LoginPage";
 import { QRCodeCanvas } from "qrcode.react";
-import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { auth, db } from "../firebase-config";
 import { Log, logConverter } from "../pages/BrowseLogsPage";
 
 
 interface UserProps{
-    user:UserData
+    user:UserData,
+    onRemove: (uid:string) => Promise<void>
 }
 
-const UserRecord = ({user}: UserProps)=>{
+const UserRecord = ({user, onRemove}: UserProps)=>{
 
     const [showQr, setShowQr] = useState<boolean>();
     const [entries, setEntries] = useState<Array<Log> | undefined>();
     const [links, setLinks] = useState<Record<string,string>>({});
     const [showEntries, setShowEntries] = useState<boolean>();
     const [intruderImage, setIntruderImage] = useState();
+    const [isLoading, setIsLoading] = useState(false);
     const toggleQr = ()=>{
         setShowQr(!showQr);
     }
@@ -66,6 +68,13 @@ const UserRecord = ({user}: UserProps)=>{
         fetchLinks();
         
     },[entries])
+
+    const deleteUserHandler = () => {
+        if (isLoading) return;
+        setIsLoading(true);
+        onRemove(user.uid).then(_=> setIsLoading(false));
+    };
+
     return (
 
 
@@ -82,6 +91,8 @@ const UserRecord = ({user}: UserProps)=>{
             
             <button className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700" onClick={toggleQr}>{showQr? "Hide QR" : "Show QR"}</button>
             <button className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700" onClick={showEntriesHandler}>{showEntries ? "Hide logs" : "Show logs"}</button>
+            <button className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" onClick={deleteUserHandler}>Delete</button>
+            {isLoading && <label>Loading...</label>}
             </div>
             <span className="text-center my-2">
             {showQr && <QRCodeCanvas value={user.uid}/>}

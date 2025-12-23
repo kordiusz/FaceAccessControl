@@ -1,7 +1,7 @@
 import React, { MouseEventHandler, useEffect, useState } from 'react';
 import logo from './logo.svg';
 import '../App.css';
-import {  collection, doc, FirestoreDataConverter, getDoc, getDocs, limit, orderBy, query, QueryDocumentSnapshot, QuerySnapshot, SnapshotOptions, Timestamp } from 'firebase/firestore';
+import {  collection, deleteDoc, doc, FirestoreDataConverter, getDoc, getDocs, limit, orderBy, query, QueryDocumentSnapshot, QuerySnapshot, SnapshotOptions, Timestamp } from 'firebase/firestore';
 import {auth, db} from "../firebase-config"
 import { signOut, signInWithPopup, GoogleAuthProvider, onAuthStateChanged , User} from 'firebase/auth';
 import { UserData } from './LoginPage';
@@ -22,6 +22,11 @@ function BrowseUsersPage() {
     
     const [users, setUsers] = useState<Array<UserData>>();
 
+    const onRemove = async (uid:string)=>{
+        const token= await auth.currentUser?.getIdToken();
+        await fetch("http://127.0.0.1:5000/users/delete/"+uid, {headers:{Authorization: "Bearer "+token}, method:"DELETE"});
+        setUsers(prev=> prev?.filter(u=> u.uid !== uid));
+    }
 
     useEffect(()=>{
 
@@ -40,7 +45,7 @@ function BrowseUsersPage() {
 
     return (<ul className='divide-y divide-gray-200'>
         {users && users.map(x=>
-            <UserRecord user={x}/>
+            <UserRecord key={x.uid} user={x} onRemove={onRemove}/>
         )}
     </ul>)
 }

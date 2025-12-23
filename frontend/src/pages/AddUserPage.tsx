@@ -5,8 +5,8 @@ const AddUserPage = ()=>{
 
     const [image, setImage] = useState<string | null>(null);    
     const [response, setResponse] = useState<string | null>(null);    
-
-
+    const [responseStatus, setResponseStatus] = useState<number | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(false)
 
     const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -28,6 +28,8 @@ const AddUserPage = ()=>{
           surname: data.get("surname"),
           email: data.get("email")
         }));
+        setIsLoading(true)
+        setResponse(null)
         const token= await auth.currentUser?.getIdToken();
         fetch("http://127.0.0.1:5000/users/add", 
           {
@@ -35,7 +37,7 @@ const AddUserPage = ()=>{
             body:data, 
             headers:{Authorization: "Bearer "+token}
           }
-        ).then(x=>x.text()).then(x=> setResponse(x));
+        ).then(x=> {setResponseStatus(x.status); return x.text()}).then(x=> {setResponse(x);setIsLoading(false); console.log("loaded")});
       }
 
       makeNewUser();
@@ -116,12 +118,13 @@ const AddUserPage = ()=>{
         {/* Submit */}
         <button
           type="submit"
-        
-          className="w-full bg-indigo-700 text-white py-2 rounded-lg hover:bg-indigo-800 transition"
+          disabled={isLoading}
+          className={`w-full bg-indigo-700 text-white py-2 rounded-lg hover:bg-indigo-800 transition`}
         >
           Submit
         </button>
-        {response && <div className="text-lime-500 leading-relaxed">{response}</div>}
+        {isLoading &&<label className="font-semibold leading-relaxed">Loading...</label>}
+        {response && <label className={`leading-relaxed ${responseStatus === 201 ? "text-lime-700" : "text-red-700"}`}>{responseStatus} - {response}</label>}
 
       </form>
     </div>
