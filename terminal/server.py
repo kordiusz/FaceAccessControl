@@ -1,6 +1,7 @@
 from flask import Flask, send_file
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
+from google.cloud.firestore_v1 import FieldFilter
 from firebase_admin.auth import EmailAlreadyExistsError
 import face_recognition
 from flask import request, jsonify
@@ -11,6 +12,8 @@ import os
 import time
 import json
 import hashlib
+from cloudinary import uploader, utils as cloudinary_utils
+import cloudinary
 from flask_cors import CORS
 
 
@@ -19,6 +22,15 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
 CORS(app)
+
+# Configuration       
+cloudinary.config( 
+    cloud_name = "dvoel7hd4", 
+    api_key = "", 
+    api_secret = "", # Click 'View API Keys' above to copy your API secret
+    secure=True
+)
+
 
 
 def get_uid_from_request():
@@ -48,6 +60,20 @@ def isAdmin(uid):
         return False
     return snapshot.to_dict()["role"] == "admin"
 
+@app.route("/users/delete/<uid>", methods=["DELETE"])
+def deleteUser(uid):
+    request_uid = get_uid_from_request()
+    if request_uid and isAdmin(request_uid):
+        userRef = db.document("users", uid)
+        userRef.delete()
+        query = db.collection("logs").where(filter=FieldFilter("uid","==", uid))
+        batch = db.batch()
+        for doc in query.stream():
+            batch.delete(doc.reference)
+        batch.commit()
+        return "deleted succesfully.", 200
+    return "dont have permissions - you are not admin", 403
+
 @app.route("/users/add", methods=["POST"])
 def addUser():
     uid = get_uid_from_request()
@@ -62,28 +88,40 @@ def addUser():
     email = data["email"]
 
     face = request.files["face"]
+
     if not face:
         return "image missing", 400
-    requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))
-    if not requestEncodings or len(requestEncodings) > 1:
-        return "bad photo", 409
-    finalEncodings = requestEncodings[0]
     try:
         user =auth.create_user(display_name=name+surname,email=email)
     except EmailAlreadyExistsError:
         return "email alredy in-use",409
     except Exception as ex:
         return ex, 400
+    
+    #upload to cloudinary
+    #using "face" after face_recognition would somehow affect the face object and i cannot upload it anymore.
+    #needs a fix in the future.
+    upload_result = uploader.upload(face, type="authenticated", folder=f"user_{user.uid}")
+
+    requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))
+    if not requestEncodings or len(requestEncodings) > 1:
+        return "bad photo", 409
+    finalEncodings = requestEncodings[0]
+ 
+    
     userRecord = {
         "uid":user.uid,
         "name":f'{name} {surname}',
         "email": email,
         "face":finalEncodings.tolist(),
-        "role":"user"
+        "role":"user",
+        "picture": upload_result["public_id"]
     }
 
     doc_ref = db.collection("users").document(user.uid)
     doc_ref.create(userRecord)
+
+    
 
     return userRecord,201
 
@@ -107,13 +145,14 @@ def verifyWithImg():
     if not distance or len(distance) > 1:
         return "not a face", 400
     print(f"distance: {distance}")
-    match = distance[0] < 0.4
+    match = distance[0] < 0.5
     doc_ref = db.collection("logs").document()
     log = {
         "uid":uid,
         "time":datetime.datetime.now(tz=datetime.timezone.utc),
         "success": bool(match),
-        "image": filename
+        "image": filename,
+        "name": userData["name"]
     }
     doc_ref.create(log)
 
