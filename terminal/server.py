@@ -15,6 +15,7 @@ import hashlib
 from cloudinary import uploader, utils as cloudinary_utils
 import cloudinary
 from flask_cors import CORS
+from dotenv import load_dotenv
 
 
 cred = credentials.Certificate("./private-key.json")
@@ -22,14 +23,15 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
 CORS(app)
+load_dotenv()  # must be called before reading env vars
 
-# Configuration       
-cloudinary.config( 
-    cloud_name = "dvoel7hd4", 
-    api_key = "", 
-    api_secret = "", # Click 'View API Keys' above to copy your API secret
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True
 )
+
 
 
 
@@ -45,6 +47,17 @@ def get_uid_from_request():
     except Exception:
         return None
 
+
+@app.route('/users/<uid>/model', methods=["GET"])
+def getModelFace(uid):
+    presets = {
+        "sm": (100, 100),
+        "md": (300, 300),
+        "lg": (600, 600),
+    }
+    w,h = presets[request.args.get("size", default="sm")]
+    url,options = cloudinary.utils.cloudinary_url(f"user_{uid}/model", type="authenticated", sign_url=True, secure=True, width=w, height=h)
+    return jsonify({"url":url}),200
 
 @app.route('/intruder/<img>', methods=["GET"])
 def getImage(img):
@@ -101,7 +114,7 @@ def addUser():
     #upload to cloudinary
     #using "face" after face_recognition would somehow affect the face object and i cannot upload it anymore.
     #needs a fix in the future.
-    upload_result = uploader.upload(face, type="authenticated", folder=f"user_{user.uid}")
+    upload_result = uploader.upload(face, type="authenticated", folder=f"user_{user.uid}", public_id="model")
 
     requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))
     if not requestEncodings or len(requestEncodings) > 1:
