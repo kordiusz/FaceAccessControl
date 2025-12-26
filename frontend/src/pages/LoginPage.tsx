@@ -8,7 +8,8 @@ import {FcGoogle} from 'react-icons/fc';
 export interface UserData{
     uid:string,
     email:string | null,
-    name:string | null
+    name:string | null,
+    role?:string
 }
 
 function LoginPage(){
@@ -30,7 +31,8 @@ const navigate = useNavigate();
         const model :UserData = {
             uid : user.uid,
             email : user.email,
-            name : user.displayName
+            name : user.displayName,
+         
         };
         setDoc(docRef, model)
       }

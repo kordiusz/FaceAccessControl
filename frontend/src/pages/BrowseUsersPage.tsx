@@ -14,7 +14,7 @@ const userDataConverter : FirestoreDataConverter<UserData> = {
     },
     fromFirestore(snapshot, options) : UserData{
         const data = snapshot.data(options);
-        return {name:data.name, email:data.email, uid : data.uid}
+        return {name:data.name, email:data.email, uid : data.uid, role: data.role}
     },
 }
 
@@ -43,11 +43,22 @@ function BrowseUsersPage() {
     
     
 
-    return (<ul className='divide-y divide-gray-200'>
+    return (<table className='divide-y divide-gray-200 table-auto w-full'>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>QR</th>
+                <th>Actions</th>
+                
+            </tr>
+        </thead>
+        <tbody>
         {users && users.map(x=>
             <UserRecord key={x.uid} user={x} onRemove={onRemove}/>
         )}
-    </ul>)
+        </tbody>
+    </table>)
 }
 
 export default BrowseUsersPage;

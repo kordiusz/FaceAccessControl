@@ -10,7 +10,7 @@ const Navbar = () => {
           to="/"
           className="text-white text-lg font-semibold tracking-tight hover:text-zinc-300 transition"
         >
-          yourapp
+          FaceVerify
         </NavLink>
 
         {/* Navigation */}
@@ -25,7 +25,7 @@ const Navbar = () => {
               }`
             }
           >
-            Home
+            Relogin
           </NavLink>
       <NavLink
             to="/users/new"
@@ -64,6 +64,19 @@ const Navbar = () => {
             }
           >
             Global logs
+          </NavLink>
+
+                    <NavLink
+            to="/logs/daily"
+            className={({ isActive }) =>
+              `text-sm transition ${
+                isActive
+                  ? "text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`
+            }
+          >
+            Today
           </NavLink>
 
         </div>

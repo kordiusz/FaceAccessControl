@@ -33,6 +33,7 @@ export interface Log{
   time: Date,
   success: boolean,
   image:string,
+  name?: string
 }
 
 function BrowseLogsPage() {
@@ -86,6 +87,7 @@ function BrowseLogsPage() {
         
         <button onClick={googleLoginHandler}>Google login</button>
         {auth.currentUser != null && <button onClick={logoutHandler}>logout</button>}
+
         {logs?.map((log,i)=>
 
           <div>

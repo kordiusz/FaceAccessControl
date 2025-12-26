@@ -7,6 +7,8 @@ import BrowseUsersPage from './pages/BrowseUsersPage';
 import MainLayout from './layouts/MainLayout';
 import { useAuth } from './components/useAuth';
 import AddUserPage from './pages/AddUserPage';
+import DailyLogsPage from './pages/DailyLogsPage';
+import { Cloudinary } from '@cloudinary/url-gen';
 
 
 
@@ -14,12 +16,12 @@ import AddUserPage from './pages/AddUserPage';
 
 function App() {
 
-  const {user,loading} = useAuth();
   return (
     <BrowserRouter>
     <Routes>
       <Route element={<MainLayout/>}>
       <Route path="/logs" element={<PrivateRoute><BrowseLogsPage/></PrivateRoute>}/>
+      <Route path='/logs/daily' element={<PrivateRoute><DailyLogsPage/></PrivateRoute>}/>
       <Route path="/users/new" element={<PrivateRoute><AddUserPage/></PrivateRoute>}/>
       <Route path='/users' element={<PrivateRoute><BrowseUsersPage/></PrivateRoute>}/>
       
