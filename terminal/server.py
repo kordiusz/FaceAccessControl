@@ -51,10 +51,11 @@ def get_uid_from_request():
 @app.route('/users/<uid>/model', methods=["GET"])
 def getModelFace(uid):
     presets = {
-        "sm": (100, 100),
+        "sm": (320, 240),
         "md": (300, 300),
         "lg": (600, 600),
     }
+   
     w,h = presets[request.args.get("size", default="sm")]
     url,options = cloudinary.utils.cloudinary_url(f"user_{uid}/model", type="authenticated", sign_url=True, secure=True, width=w, height=h)
     return jsonify({"url":url}),200
@@ -66,10 +67,29 @@ def getImage(img):
         return send_file(os.path.join("./images/",img))
     return "dont have permissions", 403
 
+@app.route("/logs/face", methods=["POST"])
+def accessAttemptFace():
+    uid = get_uid_from_request()
+    if uid and isAdmin(uid):
+        id = request.json["public_id"]
+        presets = {
+            "sm": (100, 100),
+            "md": (300, 300),
+            "lg": (600, 600),
+        }
+        w,h = presets[request.args.get("size", default="sm")]
+        url,options = cloudinary.utils.cloudinary_url(id, type="authenticated", sign_url=True, secure=True, width=w, height=h, resource_type="image")
+        return jsonify({"url":url}),200
+
+    return "dont have permissions", 403
+
 def isAdmin(uid):
     docRef = db.collection("users").document(uid)
     snapshot = docRef.get()
     if not snapshot.exists:
+        return False
+    data = snapshot.to_dict()
+    if "role" not in data:
         return False
     return snapshot.to_dict()["role"] == "admin"
 
@@ -78,12 +98,22 @@ def deleteUser(uid):
     request_uid = get_uid_from_request()
     if request_uid and isAdmin(request_uid):
         userRef = db.document("users", uid)
+        try:
+            cloudinary.uploader.destroy(public_id=f"user_{uid}/model")
+        except Exception as e:
+            return 400, e
         userRef.delete()
         query = db.collection("logs").where(filter=FieldFilter("uid","==", uid))
         batch = db.batch()
         for doc in query.stream():
+            cloudinary_id = doc.to_dict().get("image")
+            try:
+                cloudinary.uploader.destroy(public_id=cloudinary_id)
+            except Exception as e:
+                return 400, e
             batch.delete(doc.reference)
         batch.commit()
+
         return "deleted succesfully.", 200
     return "dont have permissions - you are not admin", 403
 
@@ -118,6 +148,8 @@ def addUser():
 
     requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))
     if not requestEncodings or len(requestEncodings) > 1:
+        #so this is the fix to comment above:
+        uploader.destroy(public_id=upload_result["public_id"])
         return "bad photo", 409
     finalEncodings = requestEncodings[0]
  
@@ -142,13 +174,9 @@ def addUser():
 def verifyWithImg():
     uid = request.form.get("uid")
     requestFaceImage = request.files["face"]
-    timestamp = int (time.time()*1000)
-    raw = f'{uid}_{timestamp}'
-    hash_str = hashlib.sha256(raw.encode())
-    filename = f'{hash_str.hexdigest()}.png'
-    path = os.path.join("./images/",filename)
-    requestFaceImage.save(path)
 
+    upload_result = uploader.upload(requestFaceImage, type="authenticated", folder=f"user_{uid}")
+    print(f"upload result {upload_result["public_id"]}")
     image = face_recognition.load_image_file(requestFaceImage)
     requestEncodings = face_recognition.face_encodings(image)[0]
 
@@ -158,14 +186,15 @@ def verifyWithImg():
     if not distance or len(distance) > 1:
         return "not a face", 400
     print(f"distance: {distance}")
-    match = distance[0] < 0.5
+    match = distance[0] < 0.35
     doc_ref = db.collection("logs").document()
     log = {
         "uid":uid,
         "time":datetime.datetime.now(tz=datetime.timezone.utc),
         "success": bool(match),
-        "image": filename,
-        "name": userData["name"]
+        "image": upload_result["public_id"],
+        "name": userData["name"],
+        "similarity": 1-distance[0],
     }
     doc_ref.create(log)
 
