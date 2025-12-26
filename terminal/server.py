@@ -176,7 +176,6 @@ def verifyWithImg():
     requestFaceImage = request.files["face"]
 
     upload_result = uploader.upload(requestFaceImage, type="authenticated", folder=f"user_{uid}")
-    print(f"upload result {upload_result["public_id"]}")
     image = face_recognition.load_image_file(requestFaceImage)
     requestEncodings = face_recognition.face_encodings(image)[0]
 
