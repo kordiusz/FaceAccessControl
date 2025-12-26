@@ -198,7 +198,10 @@ def verifyWithImg():
     }
     doc_ref.create(log)
 
-    return "ok",200
+    if match:
+        return "recognized!",200
+    else:
+        return "not recognized",400
 
 if __name__ == '__main__':
     app.run(debug=True)
