@@ -1,74 +1,94 @@
 import cv2
 import face_recognition
 import requests
-import base64
+import numpy as np
 from io import BytesIO
 from qreader import QReader
-#img = cv2.imread('./messi1.jpg')
-#img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-#face_encodings = face_recognition.face_encodings(img_rgb)[0]
 
-#img2 = cv2.imread('./messi2.jpg')
-#img_rgb2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
-
-url ="http://127.0.0.1:5000/verify"
+# --- Configuration ---
+LIMIT = 5
+URL = "http://localhost:5000/verifyimg"
 
 cap = cv2.VideoCapture(0)
 qreader = QReader()
-qr_data = ""
 
-
-while True:
-    ret,frame =cap.read()
-    cv2.imshow('QR',frame)
-    qr_data = qreader.detect_and_decode(image=frame)
-    if(qr_data and qr_data[0]):
-        break
-    key = cv2.waitKey(1)
-    if key==ord('q'):
-        break
-
-
-def sendToServer(uid, image_bytes):
-    url = "http://localhost:5000/verifyimg"
-    files = {"face": ("frame.png", BytesIO(image_bytes), "image/png")}
-    data = {"uid": uid}
-    response = requests.post(url, data=data, files=files)
-    return response.text
+# State variables
+qr_id = None
+face_vectors = []
+last_face_image = None
+status_msg = "Scan QR Code to Start"
+status_color = (100, 100, 100) 
 
 while True:
     ret, frame = cap.read()
-    if not ret:
-        print("Failed to grab frame")
+    if not ret: break
+
+    # 1. QR Detection Phase
+    if qr_id is None:
+        decoded_data = qreader.detect_and_decode(image=frame)
+        if decoded_data and decoded_data[0]:
+            qr_id = decoded_data[0]
+            status_msg = f"ID: {qr_id} | Detecting Face..."
+            status_color = (255, 165, 0)
+    
+    # 2. Face Collection Phase
+    else:
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        encodings = face_recognition.face_encodings(rgb_frame)
+
+        if encodings and len(face_vectors) < LIMIT:
+            face_vectors.append(encodings[0])
+            # Save the current frame as the representative image
+            last_face_image = frame.copy() 
+            status_msg = f"Collecting: {len(face_vectors)}/{LIMIT}"
+            
+            # Draw visual box
+            face_locations = face_recognition.face_locations(rgb_frame)
+            for (t, r, b, l) in face_locations:
+                cv2.rectangle(frame, (l, t), (r, b), (0, 255, 0), 2)
+
+        # 3. Processing & Sending
+        elif len(face_vectors) >= LIMIT:
+            # A. Calculate Mean Vector
+            avg_vector = np.mean(face_vectors, axis=0).tolist()
+            
+            # B. Prepare Image Bytes
+            _, buffer = cv2.imencode(".png", last_face_image)
+            image_bytes = BytesIO(buffer.tobytes())
+
+            # C. Multi-part Post (Sending Vector + Image)
+            try:
+                files = {"face": ("face.png", image_bytes, "image/png")}
+                data = {
+                    "uid": qr_id, 
+                    "vector": str(avg_vector) # Sent as string to be parsed by server
+                }
+                
+                response = requests.post(URL, data=data, files=files)
+                
+                if response.status_code == 200:
+                    status_msg = "SUCCESS: Verified"
+                    status_color = (0, 255, 0)
+                else:
+                    status_msg = f"DENIED: {response.status_code}"
+                    status_color = (0, 0, 255)
+            except Exception as e:
+                status_msg = "SERVER UNREACHABLE"
+                status_color = (0, 0, 255)
+            
+            # Reset for next scan
+            qr_id = None
+            face_vectors = []
+
+    # UI: Draw Status Bar
+    cv2.rectangle(frame, (0, frame.shape[0]-40), (frame.shape[1], frame.shape[0]), status_color, -1)
+    cv2.putText(frame, status_msg, (10, frame.shape[0]-15), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+    cv2.imshow('QR & Face Recognition', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-    cv2.imshow('FACE', frame)
-
-    # Convert BGR -> RGB for face_recognition
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    encodings = face_recognition.face_encodings(frame_rgb)
-    if encodings:
-        # Encode frame to PNG bytes
-        success, encoded_image = cv2.imencode(".png", frame)
-        if not success:
-            raise Exception("Failed to encode frame")
-        image_bytes = encoded_image.tobytes()
-
-        # Send to server
-        print(sendToServer(qr_data[0], image_bytes))
-
-        # Stop the loop after first detection
-        break
-
-    key = cv2.waitKey(1)
-    if key == ord('q'):
-        break
-
-# Cleanup
 cap.release()
 cv2.destroyAllWindows()
-
-
-
-
