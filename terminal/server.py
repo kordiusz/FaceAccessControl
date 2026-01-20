@@ -177,7 +177,10 @@ def verifyWithImg():
 
     upload_result = uploader.upload(requestFaceImage, type="authenticated", folder=f"user_{uid}")
     image = face_recognition.load_image_file(requestFaceImage)
-    requestEncodings = face_recognition.face_encodings(image)[0]
+    faces = face_recognition.face_encodings(image)
+    if not faces or len(faces) == 0:
+        return "not a face", 400
+    requestEncodings = faces[0]
 
     userData = db.collection("users").document(uid).get().to_dict()
     actualEncodings = np.array(userData["face"], dtype=np.float64)
@@ -185,7 +188,7 @@ def verifyWithImg():
     if not distance or len(distance) > 1:
         return "not a face", 400
     print(f"distance: {distance}")
-    match = distance[0] < 0.35
+    match = distance[0] < 0.4
     doc_ref = db.collection("logs").document()
     log = {
         "uid":uid,
