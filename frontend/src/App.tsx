@@ -20,8 +20,7 @@ function App() {
     <BrowserRouter>
     <Routes>
       <Route element={<MainLayout/>}>
-      <Route path="/logs" element={<PrivateRoute><BrowseLogsPage/></PrivateRoute>}/>
-      <Route path='/logs/daily' element={<PrivateRoute><DailyLogsPage/></PrivateRoute>}/>
+      <Route path='/logs' element={<PrivateRoute><DailyLogsPage/></PrivateRoute>}/>
       <Route path="/users/new" element={<PrivateRoute><AddUserPage/></PrivateRoute>}/>
       <Route path='/users' element={<PrivateRoute><BrowseUsersPage/></PrivateRoute>}/>
       

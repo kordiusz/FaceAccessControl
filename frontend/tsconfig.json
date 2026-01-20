@@ -22,5 +22,13 @@
   },
   "include": [
     "src"
-  ]
+  ],
+  // Source - https://stackoverflow.com/a
+// Posted by Or Nakash
+// Retrieved 2026-01-20, License - CC BY-SA 4.0
+
+"paths": {
+   "react": [ "./node_modules/@types/react" ]
+ }
+
 }
