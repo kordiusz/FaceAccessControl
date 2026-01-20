@@ -91,9 +91,9 @@ while True:
         
         if face_locations:
             # Scale back coordinates for drawing on full frame
-            for (t, r, b, l) in face_locations:
-                t, r, b, l = t*2, r*2, b*2, l*2
-                cv2.rectangle(frame, (l, t), (r, b), (0, 255, 0), 2)
+            # for (t, r, b, l) in face_locations:
+            #     t, r, b, l = t*2, r*2, b*2, l*2
+            #     cv2.rectangle(frame, (l, t), (r, b), (0, 255, 0), 2)
             
             # Send verification with FULL-SIZE ORIGINAL frame
             is_processing = True
