@@ -31,7 +31,7 @@ function BrowseUsersPage() {
     useEffect(()=>{
 
         const fetchUserList = async ()=>{
-            const q = query(collection(db, "users").withConverter(userDataConverter), orderBy("name"), limit(20));
+            const q = query(collection(db, "users").withConverter(userDataConverter), orderBy("role"), limit(20));
             const snapshot = await getDocs(q);
             setUsers(snapshot.docs.map(record=>record.data()));
         }

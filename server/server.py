@@ -77,7 +77,7 @@ def accessAttemptFace():
             "md": (300, 300),
             "lg": (600, 600),
         }
-        w,h = presets[request.args.get("size", default="sm")]
+        w,h = presets[request.args.get("size", default="lg")]
         url,options = cloudinary.utils.cloudinary_url(id, type="authenticated", sign_url=True, secure=True, width=w, height=h, resource_type="image")
         return jsonify({"url":url}),200
 
@@ -183,6 +183,8 @@ def verifyWithImg():
     requestEncodings = faces[0]
 
     userData = db.collection("users").document(uid).get().to_dict()
+    if (bool(userData["innactive"])):
+        return "account innactive", 403
     actualEncodings = np.array(userData["face"], dtype=np.float64)
     distance = face_recognition.face_distance([actualEncodings], requestEncodings)
     if not distance or len(distance) > 1:
@@ -206,4 +208,4 @@ def verifyWithImg():
         return "not recognized",400
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)

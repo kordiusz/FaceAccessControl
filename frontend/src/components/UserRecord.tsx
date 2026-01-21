@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { UserData } from "../pages/LoginPage";
 import { QRCodeCanvas } from "qrcode.react";
-import { collection, deleteDoc, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, Firestore, getDoc, getDocs, limit, query, updateDoc, where } from "firebase/firestore";
 import { auth, db } from "../firebase-config";
 import { Log, logConverter } from "../pages/BrowseLogsPage";
 
@@ -22,6 +22,7 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
     const [modelFaceUrl, setModelFaceUrl] = useState<string>();
     const [intruderImage, setIntruderImage] = useState();
     const [isLoading, setIsLoading] = useState(false);
+    const [userInnactive, setUserInnavtive]  = useState(false);
     
     const toggleQr = ()=>{
         setShowQr(!showQr);
@@ -50,32 +51,32 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
         return `http://localhost:5000/users/${uid}/model`
     }
 
-    const getLogAccessImage = (id:string)=>{
-        return `http://localhost:5000/logs/face`;
-    }
-    
-    useEffect(()=>{
-        
-        const fetchLinks = async ()=>{
-            if (!entries)
-                return
-            const token= await auth.currentUser?.getIdToken();
-            const records:Record<string,string> = {};   
-            await Promise.all(entries.map(async e=>{
-
-                await fetch(getLogAccessImage(e.image), {method:"POST", headers:{Authorization: "Bearer "+token, "Content-Type":"application/json"}, body: JSON.stringify({"public_id":e.image})}).then(res=> res.json()).then(data=>{                    
-                    records[e.id] = data["url"];
-                }).catch(err=>console.log(err));
-
-            }));
-            
-            setLinks(records);
-            console.log(records);
+        const getLogAccessImage = (id:string)=>{
+            return `http://localhost:5000/logs/face`;
         }
-
-        fetchLinks();
         
-    },[entries])
+        useEffect(()=>{
+            setUserInnavtive(user.inactive ?? false)
+            const fetchLinks = async ()=>{
+                if (!entries)
+                    return
+                const token= await auth.currentUser?.getIdToken();
+                const records:Record<string,string> = {};   
+                await Promise.all(entries.map(async e=>{
+
+                    await fetch(getLogAccessImage(e.image), {method:"POST", headers:{Authorization: "Bearer "+token, "Content-Type":"application/json"}, body: JSON.stringify({"public_id":e.image})}).then(res=> res.json()).then(data=>{                    
+                        records[e.id] = data["url"];
+                    }).catch(err=>console.log(err));
+
+                }));
+                
+                setLinks(records);
+                console.log(records);
+            }
+
+            fetchLinks();
+            
+        },[entries])
 
     const deleteUserHandler = () => {
         if (isLoading) return;
@@ -98,6 +99,13 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
         
     }
     
+    const toggleIsActive = async ()=>{
+        setIsLoading(true);
+        await updateDoc(doc(db, 'users', user.uid), {innactive:!userInnactive});
+        setUserInnavtive(!userInnactive);
+        setIsLoading(false);
+    }
+
     const handleImageLoad = (id: string) => {
         setImagesLoaded(prev => ({...prev, [id]: true}));
     };
@@ -110,16 +118,29 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
         
         <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4">
-              <div className="flex items-center">
-                <div className="text-sm font-medium text-gray-900">
-                  {user.name}
-                  {user.role === 'admin' && (
-                    <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                      Admin
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900">{user.name}</span>
+
+                    {user.role === 'admin'?
+
+                    
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                        Admin
                     </span>
-                  )}
+                    :
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    userInnactive && user.role != 'admin'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-green-100 text-green-800' 
+
+                        
+                    }`}>
+                    { userInnactive ? 'Inactive' : 'Active'}
+                    </span>
+                }
+                    
+
                 </div>
-              </div>
             </td>
             
             <td className="px-6 py-4">
@@ -127,6 +148,7 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
             </td>
             
             <td className="px-6 py-4">
+              {!userInnactive && user.role!='admin'&&
               <div className="flex justify-center">
                 <button
                   onClick={toggleQr}
@@ -134,10 +156,11 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
                 >
                   View QR
                 </button>
-              </div>
+              </div>}
             </td>
             
             <td className="px-6 py-4">
+              {user.role!='admin'&&
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={showEntriesHandler}
@@ -151,6 +174,13 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
                   className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                 >
                   View Face
+                </button>
+
+                <button
+                  onClick={toggleIsActive}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                >
+                  {userInnactive ? "Activate" : "Deactivate"}
                 </button>
                 
                 {user.role !== 'admin' && (
@@ -172,7 +202,7 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
                     Loading...
                   </span>
                 )}
-              </div>
+              </div>}
             </td>
         </tr>
 

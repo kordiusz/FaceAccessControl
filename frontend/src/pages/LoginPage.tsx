@@ -9,7 +9,8 @@ export interface UserData{
     uid:string,
     email:string | null,
     name:string | null,
-    role?:string
+    role?:string,
+    inactive?:boolean
 }
 
 function LoginPage(){
@@ -58,12 +59,12 @@ function LoginPage(){
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       await createUserDocument(userCredential.user);
       navigate("/users");
     } catch (error: any) {
+      console.log(error)
       console.error("Email/Password Error:", error);
       setError("Invalid email or password");
     } finally {
@@ -76,8 +77,8 @@ function LoginPage(){
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
-          <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-gray-900">FaceVerify</h1>
+          <p className="mt-2 text-sm text-gray-600">Sign in to your admin account</p>
         </div>
 
         <div className="bg-white shadow-md rounded-lg p-8">
