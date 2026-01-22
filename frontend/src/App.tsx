@@ -9,6 +9,7 @@ import { useAuth } from './components/useAuth';
 import AddUserPage from './pages/AddUserPage';
 import DailyLogsPage from './pages/DailyLogsPage';
 import { Cloudinary } from '@cloudinary/url-gen';
+import EditUserPage from './pages/EditUserPage';
 
 
 
@@ -23,6 +24,7 @@ function App() {
       <Route path='/logs' element={<PrivateRoute><DailyLogsPage/></PrivateRoute>}/>
       <Route path="/users/new" element={<PrivateRoute><AddUserPage/></PrivateRoute>}/>
       <Route path='/users' element={<PrivateRoute><BrowseUsersPage/></PrivateRoute>}/>
+      <Route path="/users/edit/:uid" element={<PrivateRoute><EditUserPage /></PrivateRoute>} />
       
       </Route>
       <Route path="*" element={<LoginPage/>}/>

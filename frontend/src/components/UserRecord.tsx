@@ -4,6 +4,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { collection, deleteDoc, doc, Firestore, getDoc, getDocs, limit, query, updateDoc, where } from "firebase/firestore";
 import { auth, db } from "../firebase-config";
 import { Log, logConverter } from "../pages/BrowseLogsPage";
+import { useNavigate } from "react-router-dom";
 
 
 interface UserProps{
@@ -23,7 +24,7 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
     const [intruderImage, setIntruderImage] = useState();
     const [isLoading, setIsLoading] = useState(false);
     const [userInnactive, setUserInnavtive]  = useState(false);
-    
+    const navigate = useNavigate();
     const toggleQr = ()=>{
         setShowQr(!showQr);
     }
@@ -47,9 +48,10 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
 
 
 
-    const getModelFaceLink = (uid:string)=>{
-        return `http://localhost:5000/users/${uid}/model`
-    }
+const getModelFaceLink = (uid: string) => {
+    const timestamp = Date.now(); // or use a version number if you have it
+    return `http://localhost:5000/users/${uid}/model?t=${timestamp}`;
+}
 
         const getLogAccessImage = (id:string)=>{
             return `http://localhost:5000/logs/face`;
@@ -105,7 +107,10 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
         setUserInnavtive(!userInnactive);
         setIsLoading(false);
     }
-
+    const editUserHandler = ()=>{
+      navigate("/users/edit/"+user.uid);
+    }
+    
     const handleImageLoad = (id: string) => {
         setImagesLoaded(prev => ({...prev, [id]: true}));
     };
@@ -181,6 +186,13 @@ const UserRecord = ({user, onRemove}: UserProps)=>{
                   className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                 >
                   {userInnactive ? "Activate" : "Deactivate"}
+                </button>
+
+                <button
+                  onClick={editUserHandler}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                >
+                  Edit
                 </button>
                 
                 {user.role !== 'admin' && (
