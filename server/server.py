@@ -55,10 +55,33 @@ def getModelFace(uid):
         "md": (300, 300),
         "lg": (600, 600),
     }
-   
-    w,h = presets[request.args.get("size", default="sm")]
-    url,options = cloudinary.utils.cloudinary_url(f"user_{uid}/model", type="authenticated", sign_url=True, secure=True, width=w, height=h)
-    return jsonify({"url":url}),200
+    user_data = db.collection("users").document(uid).get().to_dict()
+    v = user_data.get("version", 1)  # Default to version 1
+    w, h = presets[request.args.get("size", default="sm")]
+    
+    url = ""
+    if v is 1:
+                url, options = cloudinary.utils.cloudinary_url(
+            f"user_{uid}/model", 
+            sign_url=True, 
+            secure=True, 
+            width=w, 
+            height=h, 
+            type="authenticated"
+        )
+    else:
+        url, options = cloudinary.utils.cloudinary_url(
+            f"user_{uid}/model", 
+            sign_url=True, 
+            secure=True, 
+            width=w, 
+            height=h, 
+            version=v
+        )
+    
+    response = jsonify({"url": url})
+    return response, 200
+
 
 @app.route('/intruder/<img>', methods=["GET"])
 def getImage(img):
@@ -116,7 +139,43 @@ def deleteUser(uid):
 
         return "deleted succesfully.", 200
     return "dont have permissions - you are not admin", 403
+@app.route("/users/<uid>/update/face", methods=["PUT"])
+def editFace(uid):
+    print(uid)
+    face = request.files.get("face")
+    if not face:
+        return "image missing", 400
+    image_data = face_recognition.load_image_file(face)
+    requestEncodings = face_recognition.face_encodings(image_data)
 
+    if not requestEncodings or len(requestEncodings) > 1:
+        return "bad photo", 409
+    
+    finalEncodings = requestEncodings[0]
+
+    face.seek(0)
+
+
+    upload_result = uploader.upload(
+        face, 
+        folder=f"user_{uid}", 
+        public_id="model",
+        overwrite=True,
+        invalidate=True
+    )
+
+    # 4. UPDATE FIRESTORE
+    userRecord = {
+        "face": finalEncodings.tolist(),
+        "picture": upload_result["public_id"],
+        "version": upload_result.get("version")
+    }
+
+    doc_ref = db.collection("users").document(uid)
+
+    doc_ref.set(userRecord, merge=True)
+
+    return userRecord, 201
 @app.route("/users/add", methods=["POST"])
 def addUser():
     uid = get_uid_from_request()
@@ -144,7 +203,7 @@ def addUser():
     #upload to cloudinary
     #using "face" after face_recognition would somehow affect the face object and i cannot upload it anymore.
     #needs a fix in the future.
-    upload_result = uploader.upload(face, type="authenticated", folder=f"user_{user.uid}", public_id="model")
+    upload_result = uploader.upload(face, folder=f"user_{user.uid}", public_id="model")
 
     requestEncodings = face_recognition.face_encodings(face_recognition.load_image_file(face))
     if not requestEncodings or len(requestEncodings) > 1:
@@ -160,7 +219,8 @@ def addUser():
         "email": email,
         "face":finalEncodings.tolist(),
         "role":"user",
-        "picture": upload_result["public_id"]
+        "picture": upload_result["public_id"],
+        "version": upload_result.get("version")
     }
 
     doc_ref = db.collection("users").document(user.uid)
