@@ -11,6 +11,7 @@ import time
 URL = "http://localhost:5000/verifyimg"
 FRAME_SKIP_FACE = 2  # Process every 2nd frame for face
 FRAME_SKIP_QR = 5  # Process every 5th frame for QR (less frequent)
+COUNTDOWN_SECONDS = 3  # Countdown duration after QR scan
 
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
@@ -18,6 +19,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 # State variables
 qr_id = None
+qr_detected_time = None  # Time when QR was detected
 status_msg = "Scan QR Code to Start"
 status_color = (100, 100, 100)
 is_processing = False
@@ -54,8 +56,9 @@ def send_verification(uid, face_image):
 
 def reset_state():
     """Reset to scan for next QR code"""
-    global qr_id, is_processing, status_msg, status_color
+    global qr_id, qr_detected_time, is_processing, status_msg, status_color
     qr_id = None
+    qr_detected_time = None
     is_processing = False
     status_msg = "Scan QR Code to Start"
     status_color = (100, 100, 100)
@@ -77,30 +80,48 @@ while True:
         
         if qr_codes:
             qr_id = qr_codes[0].data.decode('utf-8')
-            status_msg = f"ID: {qr_id} | Detecting Face..."
+            qr_detected_time = time.time()
+            status_msg = f"ID: {qr_id} | Get Ready..."
             status_color = (255, 165, 0)
     
-    # 2. Face Detection & Sending Phase
-    elif qr_id is not None and not is_processing and (frame_count % FRAME_SKIP_FACE == 0):
-        # Use small frame ONLY for detection
-        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-        rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+    # 1.5 Countdown Phase (show countdown after QR detection)
+    elif qr_id is not None and qr_detected_time is not None and not is_processing:
+        elapsed = time.time() - qr_detected_time
+        remaining = COUNTDOWN_SECONDS - elapsed
         
-        # Use faster HOG model for detection
-        face_locations = face_recognition.face_locations(rgb_small, model="hog")
+        if remaining > 0:
+            # Show countdown
+            countdown = int(remaining) + 1
+            status_msg = f"ID: {qr_id} | Get Ready: {countdown}s"
+            status_color = (255, 165, 0)
+        else:
+            # Countdown finished, ready for face detection
+            status_msg = f"ID: {qr_id} | Detecting Face..."
+            status_color = (0, 255, 255)
+    
+    # 2. Face Detection & Sending Phase (only after countdown)
+    if qr_id is not None and qr_detected_time is not None and not is_processing and (frame_count % FRAME_SKIP_FACE == 0):
+        elapsed = time.time() - qr_detected_time
         
-        if face_locations:
-
+        # Only detect face after countdown
+        if elapsed >= COUNTDOWN_SECONDS:
+            # Use small frame ONLY for detection
+            small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+            rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
             
-            # Send verification with FULL-SIZE ORIGINAL frame
-            is_processing = True
-            status_msg = "Processing..."
-            status_color = (255, 255, 0)
+            # Use faster HOG model for detection
+            face_locations = face_recognition.face_locations(rgb_small, model="hog")
             
-            # Start verification in background thread with original full frame
-            thread = threading.Thread(target=send_verification, args=(qr_id, frame.copy()))
-            thread.daemon = True
-            thread.start()
+            if face_locations:
+                # Send verification with FULL-SIZE ORIGINAL frame
+                is_processing = True
+                status_msg = "Processing..."
+                status_color = (255, 255, 0)
+                
+                # Start verification in background thread with original full frame
+                thread = threading.Thread(target=send_verification, args=(qr_id, frame.copy()))
+                thread.daemon = True
+                thread.start()
 
     # UI: Draw Status Bar
     cv2.rectangle(frame, (0, frame.shape[0]-40), (frame.shape[1], frame.shape[0]), status_color, -1)
