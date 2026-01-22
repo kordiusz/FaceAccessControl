@@ -89,7 +89,7 @@ function LoginPage(){
             disabled={isLoading}
           >
             <span> Continue with Google</span>
-            <FcGoogle className="text-xl" />
+            {React.createElement(FcGoogle as any, { className: "text-xl" })}
            
           </button>
 
