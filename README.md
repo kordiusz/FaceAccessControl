@@ -1,6 +1,6 @@
 # FaceVerify 
 
-**FaceVerify** is a smart biometric access control system. It combines facial recognition and QR code scanning to provide a secure and seamless entry management experience. The project integrates a Python-based detection client with a React administrative dashboard and a Flask backend. Made for Inżynieria Oprogramowania during ICT bachelor's degree study course.
+**FaceVerify** is a smart biometric access control system. It combines facial recognition and QR code scanning to provide a secure and seamless entry management experience. The project integrates a **Python-based** detection client with a **React** administrative dashboard and a **Flask** backend. Made for Inżynieria Oprogramowania during ICT bachelor's degree study course.
 
 ---
 
